@@ -1,5 +1,7 @@
+import pickle
 import random
 
+import neat
 from config import SCREEN_WIDTH, BLACK, SPEED_INCREMENT, \
     GROUND_LEVEL, OBSTACLE_SPEED, WHITE, BROWN, LIGHT_BLUE, BLUE, \
     SCREEN_HEIGHT
@@ -9,7 +11,7 @@ from resources import logging
 
 class Game:
 
-    def __init__(self, show_fps, custom_obstacle_speed, fps):
+    def __init__(self, show_fps, custom_obstacle_speed, fps, config_path):
         logging.info("Initializing game...")
         self.fps = fps
         self.running = True
@@ -21,12 +23,17 @@ class Game:
         else:
             self.obstacle_speed = custom_obstacle_speed
             self.original_obstacle_speed = custom_obstacle_speed
-        from dino import Dino
-        self.dino = Dino()
+        self.dinos = []
+        self.config_path = config_path
         self.obstacles = []
         self.high_score = 0
         self.spacing = 0
         self.show_fps = show_fps
+        self.generation = 0
+        self.WIN = 0
+        self.generation = 0
+        self.nets = []
+        self.ge = []
 
         self.background_day = pygame.image.load('textures/desert_day/desert_day_background.png').convert_alpha()
         self.background_day_flipped = pygame.transform.flip(self.background_day, True, False).convert_alpha()
@@ -108,12 +115,12 @@ class Game:
                 self.running = False
                 logging.info("Exit")
 
-
     def update(self):
         if self.pause:
             return
 
-        self.dino.update(self.score)
+        for dino in self.dinos:
+            dino.update(self.score)
 
         if not self.pause:
             self.background_x -= self.obstacle_speed * 0.20
@@ -172,12 +179,10 @@ class Game:
                 obstacle.got_counted = True
                 self.score += 100
                 self.progress_smoothed = 0
+                for genome in self.ge:
+                    genome.fitness += 5
 
                 logging.info(f"Score: {self.score}")
-
-            if obstacle.collides_with(self.dino):
-                logging.info("Dino collided with obstacle")
-                self.reset()
 
             self.obstacle_speed += SPEED_INCREMENT
 
@@ -250,7 +255,8 @@ class Game:
         for obstacle in self.obstacles:
             obstacle.draw()
 
-        self.dino.draw()
+        for dino in self.dinos:
+            dino.draw()
 
         color = WHITE if self.pause else BLACK
 
@@ -293,9 +299,86 @@ class Game:
         pygame.display.flip()
 
     def run(self):
+        config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
+                                    neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                                    self.config_path)
+
+        p = neat.Population(config)
+
+        p.add_reporter(neat.StdOutReporter(True))
+        stats = neat.StatisticsReporter()
+        p.add_reporter(stats)
+
+        winner = p.run(self.run_with_neat, 100000)
+
+        print('\nBest genome:\n{!s}'.format(winner))
+
+
+    def run_with_neat(self, genomes, config):
+        self.generation += 1
+        for genome_id, genome in genomes:
+            genome.fitness = 0
+            net = neat.nn.FeedForwardNetwork.create(genome, config)
+            self.nets.append(net)
+            from dino import Dino
+            self.dinos.append(Dino())
+            self.ge.append(genome)
+
         while self.running:
             self.handle_events()
+            if self.neat_update():
+                break
             self.update()
             self.draw()
             clock.tick(self.fps)
         pygame.quit()
+
+    def neat_update(self):
+        for x, dino in enumerate(self.dinos):
+            # Rewarding dinos slightly for staying alive
+            self.ge[x].fitness += 0.1
+
+            # Find the next obstacle that the dino will encounter
+            next_obstacle = None
+            for obstacle in self.obstacles:
+                if obstacle.x + obstacle.width[0] > dino.x:
+                    next_obstacle = obstacle
+                    break
+
+            if next_obstacle:
+                # Inputs to the neural network: dino's vertical position, the obstacle's distance, and height difference
+                inputs = (
+                    dino.y,
+                    next_obstacle.x - dino.x,
+                    next_obstacle.height[0] - dino.y
+                )
+                output = self.nets[self.dinos.index(dino)].activate(inputs)
+
+                # Decision to jump based on the neural network's output
+                if output[0] > 0.5:
+                    dino.start_jump()
+
+        # Check for collisions with obstacles
+        for obstacle in self.obstacles:
+            for dino in self.dinos:
+                if obstacle.collides_with(dino):
+                    # Penalize dinos that collide with obstacles
+                    self.ge[self.dinos.index(dino)].fitness -= 1
+                    self.nets.pop(self.dinos.index(dino))
+                    self.ge.pop(self.dinos.index(dino))
+                    self.dinos.pop(self.dinos.index(dino))
+
+        # Handle dinos that go out of bounds (fall or jump too high)
+        for dino in self.dinos:
+            if dino.y + dino.height - 10 >= GROUND_LEVEL or dino.y < -50:
+                # Remove the dino if it goes out of bounds
+                self.nets.pop(self.dinos.index(dino))
+                self.ge.pop(self.dinos.index(dino))
+                self.dinos.pop(self.dinos.index(dino))
+
+        # End the game if a goal score is reached
+        if self.score > 20000:
+            pickle.dump(self.nets[0], open("best.pickle", "wb"))
+            return True
+
+        return False

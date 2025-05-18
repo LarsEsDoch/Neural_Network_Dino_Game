@@ -76,4 +76,8 @@ if __name__ == "__main__":
 
     logging.info("Starting the game...")
 
-    Game(args.show_fps, custom_obstacle_speed, fps).run()
+    local_dir = os.path.dirname(__file__)
+    config_path = os.path.join(local_dir, 'config-feedforward.txt')
+    logging.info(f"Using config file: {config_path}")
+
+    Game(args.show_fps, custom_obstacle_speed, fps, config_path).run()
