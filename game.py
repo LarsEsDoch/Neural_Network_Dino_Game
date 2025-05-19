@@ -1,9 +1,9 @@
-import pickle
 import random
+import sys
 
 import neat
 from config import SCREEN_WIDTH, BLACK, SPEED_INCREMENT, \
-    GROUND_LEVEL, OBSTACLE_SPEED, WHITE, BROWN, LIGHT_BLUE, BLUE, \
+    GROUND_LEVEL, OBSTACLE_SPEED, WHITE, \
     SCREEN_HEIGHT
 from resources import screen, clock, font, pygame
 from obstacle import Obstacle
@@ -32,6 +32,7 @@ class Game:
         self.generation = 0
         self.WIN = 0
         self.generation = 0
+        self.best_fitness = 0
         self.nets = []
         self.ge = []
 
@@ -80,10 +81,9 @@ class Game:
     def reset(self):
         self.running = True
         self.pause = False
+        self.save_score()
         self.score = 0
         self.obstacle_speed = self.original_obstacle_speed
-        from dino import Dino
-        self.dino = Dino()
         self.obstacles.clear()
         self.spacing = 0
 
@@ -114,6 +114,51 @@ class Game:
             if event.type == pygame.QUIT:
                 self.running = False
                 logging.info("Exit")
+                sys.exit()
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_f:
+                    if self.fps != 60:
+                        self.fps = 60
+                    else:
+                        self.fps = 10000
+                if logging.getLogger().isEnabledFor(logging.DEBUG):
+                    if event.key == pygame.K_1:
+                        for obstacle in self.obstacles:
+                            obstacle.x = obstacle.x - 1
+                        logging.debug(f"Obstacle jump: 1")
+                    if event.key == pygame.K_2:
+                        for obstacle in self.obstacles:
+                            obstacle.x = obstacle.x - 2
+                        logging.debug(f"Obstacle jump: 2")
+                    if event.key == pygame.K_3:
+                        for obstacle in self.obstacles:
+                            obstacle.x = obstacle.x - 5
+                        logging.debug(f"Obstacle jump: 5")
+                    if event.key == pygame.K_4:
+                        for obstacle in self.obstacles:
+                            obstacle.x = obstacle.x - 10
+                        logging.debug(f"Obstacle jump: 10")
+                    if event.key == pygame.K_5:
+                        for obstacle in self.obstacles:
+                            obstacle.x = obstacle.x - 20
+                        logging.debug(f"Obstacle jump: 20")
+                    if event.key == pygame.K_6:
+                        for obstacle in self.obstacles:
+                            obstacle.x = obstacle.x - 50
+                        logging.debug(f"Obstacle jump: 50")
+                    if event.key == pygame.K_7:
+                        for obstacle in self.obstacles:
+                            obstacle.x = obstacle.x - 100
+                        logging.debug(f"Obstacle jump: 100")
+                    if event.key == pygame.K_8:
+                        for obstacle in self.obstacles:
+                            obstacle.x = obstacle.x - 200
+                        logging.debug(f"Obstacle jump: 200")
+                    if event.key == pygame.K_9:
+                        for obstacle in self.obstacles:
+                            obstacle.x = obstacle.x - 500
+                        logging.debug(f"Obstacle jump: 500")
 
     def update(self):
         if self.pause:
@@ -128,13 +173,6 @@ class Game:
                 self.background_x = 0
                 self.background_flip = not self.background_flip
             self.background_x_2 -= self.obstacle_speed * 0.25
-            if self.background_x_2 <= -SCREEN_WIDTH - 800:
-                self.background_x_2 = 0
-                self.background_flip_2 = not self.background_flip_2
-            self.background_x_3 -= self.obstacle_speed * 0.50
-            if self.background_x_3 <= -SCREEN_WIDTH - 800:
-                self.background_x_3 = 0
-                self.background_flip_3 = not self.background_flip_3
             self.background_x_4 -= self.obstacle_speed
             if self.background_x_4 <= -SCREEN_WIDTH - 800:
                 self.background_x_4 = 0
@@ -154,18 +192,6 @@ class Game:
             self.obstacles.append(Obstacle(self.score))
             logging.debug(f"Placed new obstacle")
 
-        if -300 >= self.background_x:
-            self.night_to_day_transition = True
-
-        if self.background_x <= -500 and (self.night_to_day_transition_progress == 1 or self.night_to_day_transition_progress == 0) :
-            self.night_to_day_transition = False
-
-        if self.night_to_day_transition:
-            if 5000 <= self.score <= 7000:
-                self.night_to_day_transition_progress = min(
-                    self.night_to_day_transition_progress + self.night_to_day_transition_speed, 1)
-
-
         for obstacle in self.obstacles[:]:
             obstacle.update(self.obstacle_speed)
 
@@ -184,67 +210,23 @@ class Game:
 
                 logging.info(f"Score: {self.score}")
 
+            for x, dino in enumerate(self.dinos):
+                if obstacle.collides_with(dino):
+                    self.best_fitness = max(self.best_fitness, self.ge[x].fitness)
+                    self.ge[self.dinos.index(dino)].fitness -= 2
+                    self.nets.pop(self.dinos.index(dino))
+                    self.ge.pop(self.dinos.index(dino))
+                    self.dinos.pop(self.dinos.index(dino))
+
             self.obstacle_speed += SPEED_INCREMENT
 
     def draw(self):
-        if not self.background_flip:
-            screen.blit(self.background_night_flipped, (self.background_x, 0))
-            screen.blit(self.background_night, (self.background_x + SCREEN_WIDTH + 800, 0))
-        else:
-             screen.blit(self.background_night, (self.background_x, 0))
-             screen.blit(self.background_night_flipped, (self.background_x + SCREEN_WIDTH + 800, 0))
-
-        if not self.background_flip_2:
-            screen.blit(self.background_night_2_flipped, (self.background_x_2, 410))
-            screen.blit(self.background_night_2, (self.background_x_2 + SCREEN_WIDTH + 800, 410))
-        else:
-            screen.blit(self.background_night_2, (self.background_x_2, 410))
-            screen.blit(self.background_night_2_flipped, (self.background_x_2 + SCREEN_WIDTH + 800, 410))
-
-        if not self.background_flip_3:
-            screen.blit(self.background_night_3_flipped, (self.background_x_3, 500))
-            screen.blit(self.background_night_3, (self.background_x_3 + SCREEN_WIDTH + 800, 500))
-        else:
-            screen.blit(self.background_night_3, (self.background_x_3, 500))
-            screen.blit(self.background_night_3_flipped, (self.background_x_3 + SCREEN_WIDTH + 800, 500))
-
-
-        if not self.background_flip_4:
-            screen.blit(self.background_night_4_flipped, (self.background_x_4, GROUND_LEVEL - 80))
-            screen.blit(self.background_night_4, (self.background_x_4 + SCREEN_WIDTH + 800, GROUND_LEVEL - 80))
-        else:
-            screen.blit(self.background_night_4, (self.background_x_4, GROUND_LEVEL - 80))
-            screen.blit(self.background_night_4_flipped, (self.background_x_4 + SCREEN_WIDTH + 800, GROUND_LEVEL - 80))
-
-        self.background_day.set_alpha(int(self.night_to_day_transition_progress * 255))
-        self.background_day_flipped.set_alpha(int(self.night_to_day_transition_progress * 255))
         if not self.background_flip:
             screen.blit(self.background_day_flipped, (self.background_x, 0))
             screen.blit(self.background_day, (self.background_x + SCREEN_WIDTH + 800, 0))
         else:
             screen.blit(self.background_day, (self.background_x, 0))
             screen.blit(self.background_day_flipped, (self.background_x + SCREEN_WIDTH + 800, 0))
-
-        self.background_day_2.set_alpha(int(self.night_to_day_transition_progress * 255))
-        self.background_day_2_flipped.set_alpha(int(self.night_to_day_transition_progress * 255))
-        if not self.background_flip_2:
-            screen.blit(self.background_day_2_flipped, (self.background_x_2, 410))
-            screen.blit(self.background_day_2, (self.background_x_2 + SCREEN_WIDTH + 800, 410))
-        else:
-            screen.blit(self.background_day_2, (self.background_x_2, 410))
-            screen.blit(self.background_day_2_flipped, (self.background_x_2 + SCREEN_WIDTH + 800, 410))
-
-        self.background_day_3.set_alpha(int(self.night_to_day_transition_progress * 255))
-        self.background_day_3_flipped.set_alpha(int(self.night_to_day_transition_progress * 255))
-        if not self.background_flip_3:
-            screen.blit(self.background_day_3_flipped, (self.background_x_3, 500))
-            screen.blit(self.background_day_3, (self.background_x_3 + SCREEN_WIDTH + 800, 500))
-        else:
-            screen.blit(self.background_day_3, (self.background_x_3, 500))
-            screen.blit(self.background_day_3_flipped, (self.background_x_3 + SCREEN_WIDTH + 800, 500))
-
-        self.background_day_4.set_alpha(int(self.night_to_day_transition_progress * 255))
-        self.background_day_4_flipped.set_alpha(int(self.night_to_day_transition_progress * 255))
         if not self.background_flip_4:
             screen.blit(self.background_day_4_flipped, (self.background_x_4, GROUND_LEVEL - 80))
             screen.blit(self.background_day_4, (self.background_x_4 + SCREEN_WIDTH + 800, GROUND_LEVEL - 80))
@@ -277,26 +259,25 @@ class Game:
         screen.blit(score_text, (10, 10))
         highest_score_text = font.render(f"High Score: {max(self.score, self.high_score)}", True, color)
         screen.blit(highest_score_text, (10, 35))
-
-        if not self.pause:
-            rect_surface = pygame.Surface((SCREEN_WIDTH // 2, 50), pygame.SRCALPHA)
-            rect_surface.set_alpha(128)
-            rect_surface.fill(WHITE)
-            screen.blit(rect_surface, (SCREEN_WIDTH // 2 - SCREEN_WIDTH // 4, 10))
-
-            pygame.draw.rect(screen, BROWN,
-                             (SCREEN_WIDTH // 2 - SCREEN_WIDTH // 4, 10, self.progress_birds * SCREEN_WIDTH // 2, 50))
-            pygame.draw.rect(screen, BLUE,
-                             (SCREEN_WIDTH // 2 - SCREEN_WIDTH // 4, 10, self.progress_day * SCREEN_WIDTH // 2, 50))
-            pygame.draw.rect(screen, LIGHT_BLUE,
-                             (SCREEN_WIDTH // 2 - SCREEN_WIDTH // 4, 10, self.progress_sky * SCREEN_WIDTH // 2, 50))
-            pygame.draw.rect(screen, WHITE, (SCREEN_WIDTH // 2 - SCREEN_WIDTH // 4, 10, SCREEN_WIDTH // 2, 50), 2)
+        best_fitness_text = font.render(
+            f"Best fitness this round: {round(max(genome.fitness for genome in self.ge), 1) if self.ge else 0} | Gen: {self.generation}",
+            True, color)
+        screen.blit(best_fitness_text, (10, 60))
+        all_best_fitness_text = font.render(f"Best fitness all time: {round(self.best_fitness, 1) if self.ge else 0} | Gen: {self.generation}",
+            True, color)
+        screen.blit(all_best_fitness_text, (10, 85))
+        alive_text = font.render(f"Alive: {len(self.dinos)}", True, color)
+        screen.blit(alive_text, (10, 110))
 
         if self.show_fps:
             fps_text = font.render(f"FPS: {int(clock.get_fps())}", True, color)
             screen.blit(fps_text, (SCREEN_WIDTH - 110, 10))
 
         pygame.display.flip()
+
+    def save_score(self):
+        if self.score > self.high_score:
+            self.high_score = self.score
 
     def run(self):
         config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
@@ -309,7 +290,7 @@ class Game:
         stats = neat.StatisticsReporter()
         p.add_reporter(stats)
 
-        winner = p.run(self.run_with_neat, 100000)
+        winner = p.run(self.run_with_neat)
 
         print('\nBest genome:\n{!s}'.format(winner))
 
@@ -327,11 +308,12 @@ class Game:
         while self.running:
             self.handle_events()
             if self.neat_update():
+                self.reset()
                 break
             self.update()
             self.draw()
             clock.tick(self.fps)
-        pygame.quit()
+
 
     def neat_update(self):
         for x, dino in enumerate(self.dinos):
@@ -346,11 +328,20 @@ class Game:
                     break
 
             if next_obstacle:
+                obstacle_type = 0
+                if next_obstacle.type == "small":
+                    obstacle_type = 1
+                if next_obstacle.type == "large":
+                    obstacle_type = 2
+                if next_obstacle.type == "double":
+                    obstacle_type = 3
                 # Inputs to the neural network: dino's vertical position, the obstacle's distance, and height difference
                 inputs = (
                     dino.y,
                     next_obstacle.x - dino.x,
-                    next_obstacle.height[0] - dino.y
+                    next_obstacle.height[0] - dino.y,
+                    next_obstacle.y[0],
+                    obstacle_type
                 )
                 output = self.nets[self.dinos.index(dino)].activate(inputs)
 
@@ -360,25 +351,16 @@ class Game:
 
         # Check for collisions with obstacles
         for obstacle in self.obstacles:
-            for dino in self.dinos:
+            for x, dino in enumerate(self.dinos):
                 if obstacle.collides_with(dino):
-                    # Penalize dinos that collide with obstacles
-                    self.ge[self.dinos.index(dino)].fitness -= 1
+                    self.best_fitness = max(self.best_fitness, self.ge[x].fitness)
+                    self.ge[self.dinos.index(dino)].fitness -= 2
                     self.nets.pop(self.dinos.index(dino))
                     self.ge.pop(self.dinos.index(dino))
                     self.dinos.pop(self.dinos.index(dino))
 
-        # Handle dinos that go out of bounds (fall or jump too high)
-        for dino in self.dinos:
-            if dino.y + dino.height - 10 >= GROUND_LEVEL or dino.y < -50:
-                # Remove the dino if it goes out of bounds
-                self.nets.pop(self.dinos.index(dino))
-                self.ge.pop(self.dinos.index(dino))
-                self.dinos.pop(self.dinos.index(dino))
-
-        # End the game if a goal score is reached
-        if self.score > 20000:
-            pickle.dump(self.nets[0], open("best.pickle", "wb"))
+        if len(self.dinos) == 0:
+            logging.info("No dinos left, ending the game.")
             return True
 
         return False

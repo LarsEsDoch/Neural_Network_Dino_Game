@@ -1,23 +1,16 @@
 import random
 
-from resources import screen, clock, BIRD_FRAMES, CACTUS_SMALL, CACTUS_LARGE, pygame, logging
+from resources import screen, clock, CACTUS_SMALL, CACTUS_LARGE, pygame, logging
 from config import GROUND_LEVEL, SCREEN_WIDTH
 
 class Obstacle:
 
     def __init__(self, score):
         self.frame_images = []
-        if score < 5000:
-            self.type = random.choice(["small", "large", "double"])
-        else:
-            self.type = random.choice(["small", "large", "double", "bird"])
+        self.type = random.choice(["small", "large", "double"])
 
-        if self.type == "bird":
-            self.x = SCREEN_WIDTH*1.6
-            frame_images = BIRD_FRAMES
-            for bird_image in frame_images:
-                self.frame_images.append(bird_image)
-        elif self.type == "small":
+
+        if self.type == "small":
             self.x = SCREEN_WIDTH + random.randint(50, 400)
             self.frame_images = [CACTUS_SMALL[random.randint(0, len(CACTUS_SMALL) - 1)]]
         elif self.type == "large" :
@@ -51,17 +44,10 @@ class Obstacle:
         self.got_counted = False
 
     def update(self, speed):
-        if self.type == "bird":
-            self.x -= speed * 1.75
-        else:
-            self.x -= speed
+        self.x -= speed
 
     def draw(self):
-        if self.type == "bird":
-            self.animation_timer += clock.get_time()
-            self.current_frame = int(self.animation_timer / 100) % len(self.frame_images)
-            screen.blit(self.frame_images[self.current_frame], (self.x, self.y[0]))
-        elif self.type == "double":
+        if self.type == "double":
             screen.blit(self.frame_images[0], (self.x, self.y[0]))
             screen.blit(self.frame_images[1], (self.x + self.width[0] + 10, self.y[1]))
         else:
@@ -87,8 +73,6 @@ class Obstacle:
             return self.x + self.width[0] < -200
 
     def collides_with(self, dino):
-        if self.type == "bird":
-            return dino.x < self.x + self.width[0] and dino.x + dino.hitbox_width > self.x and self.y[0] < dino.hitbox_y + dino.hitbox_height < self.y[0] + self.height[0 ]
         if self.type == "double":
             first_hitbox = (
                     dino.x < self.x + self.width[0]
