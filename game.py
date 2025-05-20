@@ -189,7 +189,7 @@ class Game:
 
 
         if not self.obstacles or self.obstacles[-1].x < SCREEN_WIDTH - random.randint(600, 800) - self.spacing:
-            self.spacing += 2.5
+            self.spacing += 6
             self.obstacles.append(Obstacle(self.score))
             logging.debug(f"Placed new obstacle")
 
