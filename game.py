@@ -27,6 +27,7 @@ class Game:
         self.config_path = config_path
         self.obstacles = []
         self.high_score = 0
+        self.average_score = 0
         self.spacing = 0
         self.show_fps = show_fps
         self.generation = 0
@@ -257,17 +258,19 @@ class Game:
 
         score_text = font.render(f"Score: {self.score}", True, color)
         screen.blit(score_text, (10, 10))
+        average_score_text = font.render(f"Average Score: {round(self.average_score, 1)}", True, color)
+        screen.blit(average_score_text, (10, 35))
         highest_score_text = font.render(f"High Score: {max(self.score, self.high_score)}", True, color)
-        screen.blit(highest_score_text, (10, 35))
+        screen.blit(highest_score_text, (10, 60))
         best_fitness_text = font.render(
             f"Best fitness this round: {round(max(genome.fitness for genome in self.ge), 1) if self.ge else 0} | Gen: {self.generation}",
             True, color)
-        screen.blit(best_fitness_text, (10, 60))
+        screen.blit(best_fitness_text, (10, 85))
         all_best_fitness_text = font.render(f"Best fitness all time: {round(self.best_fitness, 1) if self.ge else 0} | Gen: {self.generation}",
             True, color)
-        screen.blit(all_best_fitness_text, (10, 85))
+        screen.blit(all_best_fitness_text, (10, 110))
         alive_text = font.render(f"Alive: {len(self.dinos)}", True, color)
-        screen.blit(alive_text, (10, 110))
+        screen.blit(alive_text, (10, 135))
 
         if self.show_fps:
             fps_text = font.render(f"FPS: {int(clock.get_fps())}", True, color)
@@ -278,6 +281,9 @@ class Game:
     def save_score(self):
         if self.score > self.high_score:
             self.high_score = self.score
+
+        self.average_score = self.average_score + (self.score - self.average_score) / self.generation
+        self.average_score = round(self.average_score, 0)
 
     def run(self):
         config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
