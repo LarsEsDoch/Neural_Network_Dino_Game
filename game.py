@@ -25,7 +25,7 @@ class Game:
             self.original_obstacle_speed = custom_obstacle_speed
         self.dinos = []
         self.config_path = config_path
-        self.obstacles = []
+        self.obstacles = [Obstacle(self.score)]
         self.high_score = 0
         self.average_score = 0
         self.spacing = 0
@@ -85,7 +85,7 @@ class Game:
         self.save_score()
         self.score = 0
         self.obstacle_speed = self.original_obstacle_speed
-        self.obstacles.clear()
+        self.obstacles = [Obstacle(self.score)]
         self.spacing = 0
 
         self.background_flip = True
@@ -188,8 +188,8 @@ class Game:
                 self.progress_smoothed = self.progress_smoothed + 0.9
 
 
-        if not self.obstacles or self.obstacles[-1].x < SCREEN_WIDTH - random.randint(600, 800) - self.spacing:
-            self.spacing += 6
+        if self.obstacles[-1].x < SCREEN_WIDTH - random.randint(600, 800) - self.spacing:
+            self.spacing += 200
             self.obstacles.append(Obstacle(self.score))
             logging.debug(f"Placed new obstacle")
 

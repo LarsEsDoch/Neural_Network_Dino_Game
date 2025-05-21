@@ -67,10 +67,7 @@ class Obstacle:
             return self.x + self.width[0] < 50
 
     def complete_off_screen(self):
-        if self.type == "double":
-            return self.x + self.width[0]*2 < -200
-        else:
-            return self.x + self.width[0] < -200
+        return self.x + self.width[0] < -4000
 
     def collides_with(self, dino):
         if self.type == "double":
